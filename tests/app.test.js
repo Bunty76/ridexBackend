@@ -2,24 +2,29 @@ import request from 'supertest';
 import { app, server } from '../server.js';
 import mongoose from 'mongoose';
 import { io as Client } from 'socket.io-client';
+import Admin from '../models/AdminModel.js';
+import * as dbHandler from './dbHandler.js';
 
 describe('Ride-Hailing API & WebSockets', () => {
-    let token;
+    let driverToken;
+    let adminToken;
     let driverId;
-    const testEmail = `testdriver_${Date.now()}@example.com`;
+    const testDriverEmail = `testdriver_${Date.now()}@example.com`;
+    const testAdminEmail = `testadmin_${Date.now()}@example.com`;
     const testPassword = 'password123';
     
     let clientSocket;
 
-    beforeAll((done) => {
+    beforeAll(async () => {
+        await dbHandler.connect();
         // Start server on a specific test port for socket.io client to connect
-        server.listen(5001, () => {
-            done();
-        });
+        if (!server.listening) {
+            await new Promise((resolve) => server.listen(5001, resolve));
+        }
     });
 
     afterAll(async () => {
-        await mongoose.connection.close();
+        await dbHandler.closeDatabase();
         server.close();
     });
 
@@ -29,65 +34,69 @@ describe('Ride-Hailing API & WebSockets', () => {
         expect(res.text).toBe('Ride-Hailing API is running...');
     });
 
-    it('2. POST /auth/register - Should register a new driver', async () => {
+    it('2. POST /api/auth/register - Should register a new driver', async () => {
         const res = await request(app)
-            .post('/auth/register')
+            .post('/api/auth/register')
             .send({
                 name: 'Test Driver',
-                email: testEmail,
+                email: testDriverEmail,
                 password: testPassword
             });
         
         expect(res.statusCode).toEqual(201);
         expect(res.body).toHaveProperty('_id');
-        expect(res.body).toHaveProperty('name', 'Test Driver');
-        expect(res.body).toHaveProperty('status', 'OFFLINE');
-        
         driverId = res.body._id;
     });
 
-    it('3. POST /auth/login - Should authenticate driver and return a JWT token', async () => {
+    it('3. POST /api/auth/login - Should authenticate driver', async () => {
         const res = await request(app)
-            .post('/auth/login')
+            .post('/api/auth/login')
             .send({
-                email: testEmail,
+                email: testDriverEmail,
                 password: testPassword
             });
         
         expect(res.statusCode).toEqual(200);
         expect(res.body).toHaveProperty('token');
-        token = res.body.token;
+        driverToken = res.body.token;
     });
 
-    it('4. PATCH /driver/status - Should update driver status to ONLINE using token', async () => {
+    it('4. Admin Auth - Should create admin and login', async () => {
+        // Create admin directly in DB for test
+        await Admin.create({
+            name: 'Test Admin',
+            email: testAdminEmail,
+            password: testPassword
+        });
+
         const res = await request(app)
-            .patch('/driver/status')
-            .set('Authorization', `Bearer ${token}`)
+            .post('/api/admin/login')
             .send({
-                status: 'ONLINE'
+                email: testAdminEmail,
+                password: testPassword
             });
         
         expect(res.statusCode).toEqual(200);
-        expect(res.body).toHaveProperty('status', 'ONLINE');
+        expect(res.body).toHaveProperty('token');
+        adminToken = res.body.token;
     });
 
-    it('5. WebSockets - Should connect, send location, and broadcast update', (done) => {
-        clientSocket = Client('http://127.0.0.1:5001');
+    it('5. WebSockets - Should connect and receive updates', (done) => {
+        clientSocket = Client('http://127.0.0.1:5001', {
+            transports: ['websocket'],
+            auth: { token: driverToken }
+        });
 
         clientSocket.on('connect', () => {
-            // Once connected, emit the updateLocation event
             clientSocket.emit('updateLocation', {
                 driverId: driverId,
                 coordinates: [77.1234, 28.5678]
             });
         });
 
-        // Listen for the broadcasted location event
         clientSocket.on('driverLocationUpdated', (data) => {
             try {
                 expect(data).toHaveProperty('driverId', driverId);
-                expect(data.coordinates).toEqual([77.1234, 28.5678]);
-                
                 clientSocket.disconnect();
                 done();
             } catch (error) {

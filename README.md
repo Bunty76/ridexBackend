@@ -49,7 +49,13 @@ npm run dev
 npm start
 ```
 
-### 4. Running Tests
+### 4. Admin Seeding
+To seed a default admin user (`admin@ridex.com` / `password123`):
+```bash
+node seedAdmin.js
+```
+
+### 5. Running Tests
 
 Run the full automated integration test suite:
 ```bash
@@ -61,11 +67,12 @@ npm test
 ## 📡 API Endpoints
 
 ### Authentication
-* `POST /auth/register` - Register a new driver (requires `name`, `email`, `password`)
-* `POST /auth/login` - Authenticate a driver and receive a JWT token
+* `POST /api/auth/register` - Register a new driver (returns JWT token and driver data)
+* `POST /api/auth/login` - Authenticate a driver and receive a JWT token
+* `POST /api/admin/login` - Authenticate an admin user
 
 ### Driver Management
-* `PATCH /driver/status` - Toggle driver status between `ONLINE` and `OFFLINE` (Requires Bearer Token)
+* `PATCH /api/driver/status` - Toggle driver status between `ONLINE` and `OFFLINE` (Requires Bearer Token)
 
 ---
 
@@ -73,8 +80,10 @@ npm test
 
 **Connect to WebSocket at:** `ws://localhost:5000`
 
+> **Note:** Location updates require authentication. Provide the JWT token in the `auth` object during connection or as a Bearer token in headers.
+
 ### 1. `updateLocation` (Emit from Client)
-Used to send the driver's current GPS location.
+Used to send the driver's current GPS location. **Security**: The `driverId` must match the ID of the authenticated user.
 ```json
 {
     "driverId": "60d5ecb8b392...",
@@ -83,10 +92,20 @@ Used to send the driver's current GPS location.
 ```
 
 ### 2. `driverLocationUpdated` (Listen on Client)
-Broadcasted by the server when a location is updated, so the rider app or dispatch system can track the driver.
+Broadcasted by the server when a location is updated.
 ```json
 {
     "driverId": "60d5ecb8b392...",
     "coordinates": [77.2090, 28.6139]
 }
 ```
+
+---
+
+## 🧪 Testing Overview
+
+The project includes a comprehensive test suite in the `tests/` directory:
+* **Integration Tests**: `app.test.js` covers full API-to-Socket flows.
+* **Security Tests**: `socket_security.test.js` ensures drivers cannot spoof other drivers' locations.
+* **Error Handling**: `auth_errors.test.js` and `validation.test.js` cover invalid inputs, missing fields, and NoSQL injection protection.
+* **In-memory DB**: Tests use `mongodb-memory-server` for isolated and fast execution.

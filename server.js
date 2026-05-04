@@ -35,7 +35,7 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/', authRoutes);
+app.use('/api', authRoutes);
 
 app.get('/', (req, res) => {
     res.send('Ride-Hailing API is running...');
