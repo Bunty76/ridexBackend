@@ -8,7 +8,8 @@ import morgan from 'morgan';
 import { Server } from 'socket.io';
 import connectDB from './config/db.js';
 import authRoutes from './routes/auth.js';
-import configureSockets from './socket/socket.js';
+import rideRoutes from './routes/ride.js';
+import { configureSockets } from './socket/socket.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 // Connect to database
@@ -36,6 +37,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api', authRoutes);
+app.use('/api/rides', rideRoutes);
 
 app.get('/', (req, res) => {
     res.send('Ride-Hailing API is running...');

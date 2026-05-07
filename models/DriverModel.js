@@ -16,6 +16,29 @@ const driverSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    phone: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    vehicle: {
+        type: {
+            type: String,
+            enum: ['bike', 'auto', 'economy', 'premium'],
+            required: true
+        },
+        model: { type: String, required: true },
+        plateNumber: { type: String, required: true },
+        color: { type: String, required: true }
+    },
+    rating: {
+        type: Number,
+        default: 5.0
+    },
+    totalRatings: {
+        type: Number,
+        default: 0
+    },
     status: {
         type: String,
         enum: ['ONLINE', 'OFFLINE'],
