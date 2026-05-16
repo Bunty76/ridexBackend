@@ -90,9 +90,10 @@ describe('Ride Management API', () => {
     it('4. PATCH /api/rides/:id/status - Update ride status', async () => {
         const res = await request(app)
             .patch(`/api/rides/${rideId}/status`)
-            .send({ status: 'IN_PROGRESS' });
+            .set('Authorization', `Bearer ${driverToken}`)
+            .send({ status: 'ARRIVED' });
         
         expect(res.statusCode).toEqual(200);
-        expect(res.body.status).toEqual('IN_PROGRESS');
+        expect(res.body.status).toEqual('ARRIVED');
     });
 });

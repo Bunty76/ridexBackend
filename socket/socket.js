@@ -61,26 +61,6 @@ const configureSockets = (io) => {
             }
         });
 
-        // User requests a ride
-        socket.on('requestRide', (rideData) => {
-            // Emitting to all connected clients (in a real app, this should be to nearby online drivers)
-            console.log(`Ride requested: ${rideData._id}`);
-            io.emit('newRideRequest', rideData);
-        });
-
-        // Driver accepts a ride
-        socket.on('acceptRide', (rideData) => {
-            console.log(`Ride accepted: ${rideData._id} by driver ${rideData.driver}`);
-            // Notify the specific user or broadcast to the room of that ride
-            io.emit('rideAccepted', rideData);
-        });
-
-        // Driver updates ride status
-        socket.on('updateRideStatus', (rideData) => {
-            console.log(`Ride status updated: ${rideData._id} to ${rideData.status}`);
-            io.emit('rideStatusUpdated', rideData);
-        });
-
         socket.on('disconnect', () => {
             console.log(`Client disconnected: ${socket.id}`);
         });

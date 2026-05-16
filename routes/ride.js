@@ -3,20 +3,22 @@ const router = express.Router();
 import {
     createRideRequest,
     acceptRide,
+    startRide,
     rejectRide,
     updateRideStatus,
     getRideById,
     getFareEstimates
 } from '../controllers/rideController.js';
-import { protectDriver, protectUser } from '../middleware/auth.js';
+import { protectUser, protectDriver, protectAny } from '../middleware/auth.js';
 
 router.post('/estimate', protectUser, getFareEstimates);
 router.post('/request', protectUser, createRideRequest);
-router.get('/:id', protectUser, getRideById); // Or use a unified protect that checks either
+router.get('/:id', protectAny, getRideById); 
 
 // Driver actions
 router.patch('/:id/accept', protectDriver, acceptRide);
+router.patch('/:id/start', protectDriver, startRide);
 router.patch('/:id/reject', protectDriver, rejectRide);
-router.patch('/:id/status', updateRideStatus); // In a real app, protect this based on who is doing it
+router.patch('/:id/status', protectAny, updateRideStatus); 
 
 export default router;

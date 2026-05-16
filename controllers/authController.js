@@ -274,7 +274,10 @@ export const sendOtp = async (req, res, next) => {
         console.log(`📱 SMS SIMULATION: OTP for ${phone} is ${otpCode}`);
         console.log(`==========================================\n\n`);
 
-        res.json({ message: 'OTP sent successfully', testOtp: otpCode }); 
+        res.json({ 
+            message: 'OTP sent successfully', 
+            ...(process.env.NODE_ENV !== 'production' && { testOtp: otpCode }) 
+        }); 
     } catch (error) {
         next(error);
     }

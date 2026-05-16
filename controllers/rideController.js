@@ -37,8 +37,7 @@ export const createRideRequest = async (req, res, next) => {
             duration
         });
 
-        // Find nearby ONLINE drivers of the requested vehicle type
-        const MAX_DISTANCE_METERS = 5000; // 5km radius
+        const MAX_DISTANCE_METERS = process.env.MAX_RIDE_DISTANCE || 5000;
         
         const nearbyDrivers = await Driver.find({
             status: 'ONLINE',
@@ -54,14 +53,11 @@ export const createRideRequest = async (req, res, next) => {
             }
         });
         
-        const notifiedCount = nearbyDrivers.length;
-
-        ride.driversNotifiedCount = notifiedCount;
+        ride.driversNotifiedCount = nearbyDrivers.length;
         await ride.save();
 
         const populatedRide = await Ride.findById(ride._id).populate('user', 'name phone');
 
-        // Emit a socket event to drivers with full location data
         const io = getIO();
         if (io) {
             io.emit('newRideRequest', {
@@ -69,8 +65,8 @@ export const createRideRequest = async (req, res, next) => {
                 passengerName: populatedRide.user?.name || 'Passenger',
                 pickupLocation: populatedRide.pickupLocation,
                 dropoffLocation: populatedRide.dropoffLocation,
-                estimatedPrice: `₹${populatedRide.fare}`,
-                distance: `${populatedRide.distance} km`
+                fare: populatedRide.fare,
+                distance: populatedRide.distance
             });
         }
 
@@ -82,31 +78,20 @@ export const createRideRequest = async (req, res, next) => {
 
 // @desc    Accept a ride request
 // @route   PATCH /api/rides/:id/accept
-// @access  Private (Driver)
 export const acceptRide = async (req, res, next) => {
     try {
         const ride = await Ride.findById(req.params.id);
-
-        if (!ride) {
-            return res.status(404).json({ message: 'Ride not found' });
-        }
-
-        if (ride.status !== 'PENDING') {
-            return res.status(400).json({ message: 'Ride is no longer available' });
+        if (!ride || ride.status !== 'PENDING') {
+            return res.status(404).json({ message: 'Ride not found or already taken' });
         }
 
         ride.driver = req.driver._id;
         ride.status = 'ACCEPTED';
-        
-        // Generate a 4-digit OTP for the ride start
         ride.otp = Math.floor(1000 + Math.random() * 9000).toString();
 
         const updatedRide = await ride.save();
-
         const io = getIO();
-        if (io) {
-            io.emit('rideAccepted', updatedRide);
-        }
+        if (io) io.emit('rideAccepted', updatedRide);
 
         res.json(updatedRide);
     } catch (error) {
@@ -114,91 +99,105 @@ export const acceptRide = async (req, res, next) => {
     }
 };
 
-// @desc    Reject a ride request (from a driver)
-// @route   PATCH /api/rides/:id/reject
-// @access  Private (Driver)
+// @desc    Start the ride with OTP verification
+// @route   PATCH /api/rides/:id/start
+export const startRide = async (req, res, next) => {
+    const { otp } = req.body;
+    try {
+        const ride = await Ride.findById(req.params.id);
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+        if (ride.otp !== otp) {
+            return res.status(400).json({ message: 'Invalid OTP' });
+        }
+
+        ride.status = 'STARTED';
+        const updatedRide = await ride.save();
+        
+        const io = getIO();
+        if (io) io.emit('rideStatusUpdated', updatedRide);
+
+        res.json(updatedRide);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Update ride status (ARRIVED, COMPLETED, CANCELLED)
+export const updateRideStatus = async (req, res, next) => {
+    const { status } = req.body;
+    try {
+        const ride = await Ride.findById(req.params.id);
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
+
+        // Basic authorization
+        const isDriver = req.driver && req.driver._id.toString() === ride.driver?.toString();
+        const isUser = req.user && req.user._id.toString() === ride.user.toString();
+
+        if (['ARRIVED', 'COMPLETED'].includes(status) && !isDriver) {
+            return res.status(403).json({ message: 'Only the assigned driver can update this status' });
+        }
+
+        if (status === 'CANCELLED' && !isDriver && !isUser) {
+            return res.status(403).json({ message: 'Not authorized to cancel this ride' });
+        }
+
+        // State Machine Validation
+        const allowedTransitions = {
+            'PENDING': ['ACCEPTED', 'CANCELLED'],
+            'ACCEPTED': ['ARRIVED', 'CANCELLED'],
+            'ARRIVED': ['CANCELLED'],
+            'STARTED': ['COMPLETED', 'CANCELLED'],
+            'COMPLETED': [],
+            'CANCELLED': []
+        };
+
+        if (status === 'STARTED') {
+            return res.status(400).json({ message: 'Please use the /start endpoint with OTP to start the ride' });
+        }
+
+        if (!allowedTransitions[ride.status].includes(status)) {
+            return res.status(400).json({ message: `Invalid status transition from ${ride.status} to ${status}` });
+        }
+        
+        ride.status = status;
+        const updatedRide = await ride.save();
+        
+        const io = getIO();
+        if (io) io.emit('rideStatusUpdated', updatedRide);
+
+        res.json(updatedRide);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Reject a ride
 export const rejectRide = async (req, res, next) => {
     try {
         const ride = await Ride.findById(req.params.id);
-
-        if (!ride) {
-            return res.status(404).json({ message: 'Ride not found' });
+        if (ride) {
+            ride.driversRejectedCount += 1;
+            await ride.save();
         }
-
-        if (ride.status !== 'PENDING') {
-            return res.status(400).json({ message: 'Ride is no longer available' });
-        }
-
-        // Increment the reject count
-        ride.driversRejectedCount += 1;
-        const updatedRide = await ride.save();
-
-        res.json(updatedRide);
+        res.json({ message: 'Rejected' });
     } catch (error) {
         next(error);
     }
 };
 
-// @desc    Update ride status (ARRIVED, IN_PROGRESS, COMPLETED, CANCELLED)
-// @route   PATCH /api/rides/:id/status
-// @access  Private (Driver/User)
-export const updateRideStatus = async (req, res, next) => {
-    const { status } = req.body;
-
-    const validStatuses = ['ARRIVED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
-
-    if (!validStatuses.includes(status)) {
-        return res.status(400).json({ message: 'Invalid status update' });
-    }
-
-    try {
-        const ride = await Ride.findById(req.params.id);
-
-        if (!ride) {
-            return res.status(404).json({ message: 'Ride not found' });
-        }
-
-        // Add authorization checks: only driver can update to ARRIVED, IN_PROGRESS, COMPLETED
-        // Both user and driver can cancel. 
-        // For simplicity, we just update.
-        
-        ride.status = status;
-
-        const updatedRide = await ride.save();
-
-        res.json(updatedRide);
-    } catch (error) {
-        next(error);
-    }
-};
-
-// @desc    Get ride details by ID
-// @route   GET /api/rides/:id
-// @access  Private
 export const getRideById = async (req, res, next) => {
     try {
-        const ride = await Ride.findById(req.params.id).populate('user', 'name email').populate('driver', 'name email status');
-
-        if (!ride) {
-            return res.status(404).json({ message: 'Ride not found' });
-        }
-
+        const ride = await Ride.findById(req.params.id).populate('user', 'name email phone').populate('driver', 'name status');
+        if (!ride) return res.status(404).json({ message: 'Ride not found' });
         res.json(ride);
     } catch (error) {
         next(error);
     }
 };
 
-// @desc    Get fare estimates for all vehicle types
-// @route   POST /api/rides/estimate
-// @access  Private
 export const getFareEstimates = async (req, res, next) => {
     const { distance, duration } = req.body;
-
-    if (distance === undefined || duration === undefined) {
-        return res.status(400).json({ message: 'Distance and duration are required' });
-    }
-
     try {
         const estimates = calculateFareEstimates(distance, duration);
         res.json(estimates);
