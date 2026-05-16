@@ -17,7 +17,8 @@ describe('Ride Management API', () => {
         const userRes = await request(app).post('/api/user/register').send({
             name: 'Ride User',
             email: testUserEmail,
-            password: 'password123'
+            password: 'password123',
+            phone: '5555555555'
         });
         userToken = userRes.body.token;
 
@@ -25,7 +26,14 @@ describe('Ride Management API', () => {
         const driverRes = await request(app).post('/api/auth/register').send({
             name: 'Ride Driver',
             email: testDriverEmail,
-            password: 'password123'
+            password: 'password123',
+            phone: '4444444444',
+            vehicle: {
+                type: 'economy',
+                model: 'Ride Car',
+                plateNumber: 'RIDE-1',
+                color: 'Silver'
+            }
         });
         driverToken = driverRes.body.token;
     });
@@ -48,8 +56,9 @@ describe('Ride Management API', () => {
                     coordinates: [77.4321, 28.8765],
                     address: "End Point"
                 },
-                fare: 150,
-                distance: 10
+                vehicleType: 'economy',
+                distance: 10,
+                duration: 20
             });
         
         expect(res.statusCode).toEqual(201);

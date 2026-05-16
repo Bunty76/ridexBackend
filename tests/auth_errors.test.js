@@ -24,7 +24,14 @@ describe('Auth Error Scenarios', () => {
             .send({
                 name: 'Error Test',
                 email: testEmail,
-                password: testPassword
+                password: testPassword,
+                phone: '1111111111',
+                vehicle: {
+                    type: 'economy',
+                    model: 'Toyota Corolla',
+                    plateNumber: 'ABC-123',
+                    color: 'White'
+                }
             });
 
         // Register second time
@@ -33,7 +40,14 @@ describe('Auth Error Scenarios', () => {
             .send({
                 name: 'Error Test 2',
                 email: testEmail,
-                password: testPassword
+                password: testPassword,
+                phone: '2222222222',
+                vehicle: {
+                    type: 'economy',
+                    model: 'Honda Civic',
+                    plateNumber: 'XYZ-789',
+                    color: 'Black'
+                }
             });
         
         expect(res.statusCode).toEqual(400);
@@ -92,7 +106,7 @@ describe('Auth Error Scenarios', () => {
             });
         
         expect(res.statusCode).toEqual(400); 
-        expect(res.body.message).toBe('Please provide name, email and password');
+        expect(res.body.message).toBe('Please provide name, email, password, phone, and complete vehicle details');
     });
 
     it('Should fail to login with missing email', async () => {

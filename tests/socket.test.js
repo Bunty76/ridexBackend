@@ -23,7 +23,14 @@ describe('Socket.IO In-depth Tests', () => {
         const driver = await Driver.create({
             name: 'Socket Driver',
             email: testEmail,
-            password: 'password123'
+            password: 'password123',
+            phone: '9999999999',
+            vehicle: {
+                type: 'economy',
+                model: 'Test Model',
+                plateNumber: 'TEST-123',
+                color: 'Blue'
+            }
         });
         driverId = driver._id.toString();
         token = generateToken(driverId);

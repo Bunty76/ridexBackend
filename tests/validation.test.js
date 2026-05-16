@@ -20,7 +20,14 @@ describe('Advanced Validation Tests', () => {
                 .send({
                     name: 'Invalid Email',
                     email: 'not-an-email',
-                    password: 'password123'
+                    password: 'password123',
+                    phone: '0000000000',
+                    vehicle: {
+                        type: 'economy',
+                        model: 'Model',
+                        plateNumber: 'PLT-1',
+                        color: 'Red'
+                    }
                 });
             
             expect(res.statusCode).toEqual(400); 
@@ -36,7 +43,14 @@ describe('Advanced Validation Tests', () => {
                 .send({
                     name: 'Status Driver',
                     email: 'status@test.com',
-                    password: 'password123'
+                    password: 'password123',
+                    phone: '1212121212',
+                    vehicle: {
+                        type: 'economy',
+                        model: 'Model',
+                        plateNumber: 'PLT-2',
+                        color: 'Blue'
+                    }
                 });
 
             const loginRes = await request(app)

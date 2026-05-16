@@ -22,7 +22,14 @@ describe('Socket Security Tests', () => {
         const driver1 = await Driver.create({
             name: 'Driver One',
             email: 'driver1@test.com',
-            password: 'password123'
+            password: 'password123',
+            phone: '1111111111',
+            vehicle: {
+                type: 'economy',
+                model: 'Car 1',
+                plateNumber: 'ABC-1',
+                color: 'Red'
+            }
         });
         driver1Id = driver1._id.toString();
         driver1Token = generateToken(driver1Id);
@@ -30,7 +37,14 @@ describe('Socket Security Tests', () => {
         const driver2 = await Driver.create({
             name: 'Driver Two',
             email: 'driver2@test.com',
-            password: 'password123'
+            password: 'password123',
+            phone: '2222222222',
+            vehicle: {
+                type: 'economy',
+                model: 'Car 2',
+                plateNumber: 'XYZ-2',
+                color: 'Blue'
+            }
         });
         driver2Id = driver2._id.toString();
 

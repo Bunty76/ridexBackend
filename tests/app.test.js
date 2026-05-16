@@ -40,7 +40,14 @@ describe('Ride-Hailing API & WebSockets', () => {
             .send({
                 name: 'Test Driver',
                 email: testDriverEmail,
-                password: testPassword
+                password: testPassword,
+                phone: '8888888888',
+                vehicle: {
+                    type: 'economy',
+                    model: 'Test Car',
+                    plateNumber: 'REG-555',
+                    color: 'Red'
+                }
             });
         
         expect(res.statusCode).toEqual(201);

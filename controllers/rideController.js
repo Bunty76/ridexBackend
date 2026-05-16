@@ -61,14 +61,14 @@ export const createRideRequest = async (req, res, next) => {
 
         const populatedRide = await Ride.findById(ride._id).populate('user', 'name phone');
 
-        // Emit a socket event to drivers
+        // Emit a socket event to drivers with full location data
         const io = getIO();
         if (io) {
             io.emit('newRideRequest', {
                 id: populatedRide._id,
                 passengerName: populatedRide.user?.name || 'Passenger',
-                pickupLocation: populatedRide.pickupLocation?.address || 'Unknown Pickup',
-                dropoffLocation: populatedRide.dropoffLocation?.address || 'Unknown Dropoff',
+                pickupLocation: populatedRide.pickupLocation,
+                dropoffLocation: populatedRide.dropoffLocation,
                 estimatedPrice: `₹${populatedRide.fare}`,
                 distance: `${populatedRide.distance} km`
             });

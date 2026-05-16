@@ -26,7 +26,8 @@ describe('User Authentication & Profile API', () => {
             .send({
                 name: 'Test User',
                 email: testUserEmail,
-                password: testPassword
+                password: testPassword,
+                phone: '7777777777'
             });
         
         expect(res.statusCode).toEqual(201);

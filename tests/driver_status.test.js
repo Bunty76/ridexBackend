@@ -18,7 +18,14 @@ describe('Driver Status Updates', () => {
             .send({
                 name: 'Status Driver',
                 email: testEmail,
-                password: testPassword
+                password: testPassword,
+                phone: '6666666666',
+                vehicle: {
+                    type: 'economy',
+                    model: 'Status Car',
+                    plateNumber: 'STS-000',
+                    color: 'Green'
+                }
             });
 
         const res = await request(app)
